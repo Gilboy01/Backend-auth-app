@@ -4,9 +4,7 @@ npm i nodemon --save-dev
 npm i bcryptjs
 npm i jsonwebtoken
 
-password = CJHqHjUemw8MaocE
 
-MONGODB_URI = mongodb+srv://gilbertmwega_db_user:CJHqHjUemw8MaocE@cluster0.avvfyyw.mongodb.net/
 
 // db setup
 const mongoose = require("mongoose");
@@ -279,5 +277,10 @@ git commit -m "initial commit"
 git remote add origin https://github.com/Gilboy01/Backend-auth-app.git
 click publish button(will publish at master branch)
 
+
+package.json setup
+// remove test script
+"start": "node server.js"
+"build": "npm install"
 
 
