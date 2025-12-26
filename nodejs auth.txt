@@ -1,0 +1,271 @@
+npm init -y
+npm i express mongoose dotenv 
+npm i nodemon --save-dev
+npm i bcryptjs
+npm i jsonwebtoken
+
+password = CJHqHjUemw8MaocE
+
+MONGODB_URI = mongodb+srv://gilbertmwega_db_user:CJHqHjUemw8MaocE@cluster0.avvfyyw.mongodb.net/
+
+// db setup
+const mongoose = require("mongoose");
+
+const connectToDB = async () => {
+    try {
+        await mongoose.connect(process.env.MONGO_URI);
+        console.log("MongoDB connected successfully");
+    } catch (error) {
+        console.error("Mongodb connection failed");
+        process.exit(1);
+    }
+}
+
+module.exports = connectToDB;
+
+
+$or method checks either ofthe available options exists
+
+//*******************auth controller setup******************************
+const User = require("../models/user");
+const bcrypt = require("bcryptjs");
+const jwt = require("jsonwebtoken");
+
+// *****************register controller logic******************************
+const registerUser = async(req,res) => {
+    try {
+    //1. extract user information from our request body
+        // content (req.body) should be as in schema
+
+        const {username, email, password, role} = req.body;
+
+     //2. Check if user already exists in the database
+
+        const checkExistingUser = await User.findOne({$or: [{username}, {email}]});
+        if(checkExistingUser){
+            return res.status(400).json({
+                success: false,
+                message: "User already exists"
+            });
+        }
+
+    //3. Hash User Password
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash(password, salt);
+     
+    //4. create a new user and save in database
+        const newlyCreatedUser = new User({
+            username,
+            email,
+            password: hashedPassword,
+            role: role || "user"
+        });
+
+        await newlyCreatedUser.save();
+
+        if(newlyCreatedUser){
+            res.status(201).json({
+                success:true,
+                message: "User created successfully",
+                data: newlyCreatedUser
+            });
+        } else{
+             res.status(400).json({
+                success: false,
+                message: "Unable to register user, please try again",
+                
+            });
+        }
+
+    } catch (error) {
+        console.log(error);
+        res.status(500).json({
+            success: false,
+            message: "something went wrong"
+        });
+
+    }
+}
+
+// ************************login controller*****************************
+const loginUser = async(req,res) => {
+    try {
+    //1. extract username and password from req.body
+    if (!req.body) {
+        return res.status(400).json({
+            success: false,
+            message: "Request body is missing"
+        });
+    }
+    const { username, password } = req.body;
+    if (!username || !password) {
+        return res.status(400).json({
+            success: false,
+            message: "Username and password are required"
+        });
+    }
+
+    // 2. check if user exists in db
+    const user = await User.findOne({username});
+
+    if(!user){
+        return res.status(400).json({
+            success: false,
+            message: `User doesn't exist`
+        });
+    }
+    // 3. check if password is correct or not
+    const isPasswordMatch = await bcrypt.compare(password, user.password);
+
+    if(!isPasswordMatch){
+        return res.status(400).json({
+            success: false,
+            message: "Invalid credentials"
+        });
+    }
+
+    // 4. create user token
+    const accessToken = jwt.sign({
+        userId: user._id,
+        username: user.username,
+        role: user.role
+    }, process.env.JWT_SECRET_kEY,{
+        expiresIn: "15m"
+    })
+
+    res.status(200).json({
+        success: true,
+        message: "Logged in successfuly",
+        accessToken
+    })
+
+    } catch (error) {
+        console.log(error);
+        res.status(500).json({
+            success: false,
+            message: "something went wrong"
+        });
+
+    }
+}
+
+module.exports = {registerUser, loginUser};
+
+//**************************authMiddleware***************************
+
+const jwt = require("jsonwebtoken");
+
+const authMiddleware = (req,res,next) => {
+// headers contain different properties including authorization   
+const authHeader = req.headers["authorization"];
+console.log(authHeader);
+
+// authHeader contains space between bearer and token itself
+// the && is used to check if it exists
+const token = authHeader && authHeader.split(" ")[1];
+if(!token){
+  return res.status(401).json({
+    success: false,
+    message: "Access denied. No token provided. Please login to continue"
+    });
+}
+
+// decode token (get user info from token)
+try {
+    const decodedTokenInfo = jwt.verify(token, process.env.JWT_SECRET_kEY);
+    console.log(decodedTokenInfo);
+
+    //this decoded info can be parsed to other middleware
+    req.userInfo = decodedTokenInfo;
+
+    next();
+} catch (error) {
+    return res.status(500).json({
+    success: false,
+    message: "Access denied. No token provided. Please login to continue"
+    });
+}
+    
+};
+
+module.exports = authMiddleware;
+
+//*************************adminMiddleware**************************
+
+const isAdminUser = (req, res, next) => {
+    if (req.userInfo.role !== "admin"){
+        return res.status(403).json({
+            success: false,
+            message: "Access denied! Admin rights required"
+        });
+    } 
+
+    next();
+}
+
+module.exports = isAdminUser;
+
+
+//****************************adminRoutes***************************
+
+const express = require("express");
+const authMiddleware = require("../middleware/auth-middleware")
+const adminMiddleware = require("../middleware/admin-middleware")
+
+const router = express.Router();
+
+router.get("/welcome", authMiddleware, adminMiddleware, (req,res) => {
+    res.json({
+        message: "Welcome to the admin page"
+    });
+});
+
+
+module.exports = router;
+
+*****************************homeRoutes***************************
+const express = require("express");
+const authMiddleware = require("../middleware/auth-middleware");
+
+const router = express.Router();
+
+router.get("/welcome", authMiddleware, (req,res) => {
+    const {username, userId, role} = req.userInfo;
+    res.json({
+        message: "Welcome to home page",
+        user: {
+            _id: userId,
+            username,
+            role
+        }
+    });
+});
+
+module.exports = router;
+
+
+//***************************File Upload*************************
+Multer: is a nodejs middleware for handling multipart/form-data, which is primarily used for uploading files.
+
+cloudinary
+npm i cloudinary
+npm i multer
+
+1. image model
+2. cloudinary config
+3.cloudinary helper
+4.upload middleware
+5. image Controller
+6. image routes
+7. update routes in server.js
+
+
+users 
+gilboy01=1234567
+john Doe=12345678 
+
+paginess and sorting
+This is the limiting of elements per page
+
+we use params in postman to check for next page
+key=page value = 2 //to go to page 2
