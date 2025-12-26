@@ -269,3 +269,15 @@ This is the limiting of elements per page
 
 we use params in postman to check for next page
 key=page value = 2 //to go to page 2
+
+*********************Deployment***********************************
+setup new repository in github
+create .gitignore file to store sensitive information
+git init
+git add . (to stage app files)
+git commit -m "initial commit"
+git remote add origin https://github.com/Gilboy01/Backend-auth-app.git
+click publish button(will publish at master branch)
+
+
+
